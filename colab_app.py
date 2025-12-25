@@ -30,7 +30,7 @@ def unzip_data(zip_file):
         shutil.rmtree(target_dir)
     os.makedirs(target_dir, exist_ok=True)
     
-    with zipfile.ZipFile(zip_file.name, 'r') as zip_ref:
+    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
         zip_ref.extractall(target_dir)
     
     # Check for 'audio' folder inside
@@ -78,14 +78,14 @@ def run_rvc_conversion(vocal_file, model_file, progress=gr.Progress()):
         
     try:
         progress(0.1, desc="Loading Model...")
-        success = converter.load_model(model_file.name)
+        success = converter.load_model(model_file)
         if not success:
             return "Failed to load model.", None
             
         output_path = os.path.join(OUTPUT_DIR, f"converted_{int(time.time())}.wav")
         progress(0.3, desc="Converting...")
         
-        success = converter.convert(vocal_file.name, output_path)
+        success = converter.convert(vocal_file, output_path)
         
         if success:
             return "Conversion Successful!", output_path
@@ -107,7 +107,7 @@ def run_mixing(vocal_path, mr_path, vocal_vol, mr_vol, reverb, model_path, use_r
             rvc_out = os.path.join(OUTPUT_DIR, "temp_rvc_vocal.wav")
             
             # Load model
-            if not converter.load_model(model_path.name):
+            if not converter.load_model(model_path):
                 return "RVC Model Load Failed!", None
                 
             if converter.convert(vocal_path, rvc_out):
