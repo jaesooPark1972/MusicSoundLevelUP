@@ -1,0 +1,15 @@
+gradio
+pydub
+soundfile
+torch
+torchaudio
+numpy
+scipy
+faiss-cpu
+librosa
+demucs
+music21
+mir_eval
+onnxruntime
+tensorflow
+tf-keras
