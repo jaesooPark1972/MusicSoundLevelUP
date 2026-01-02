@@ -71,8 +71,17 @@ class RVCTrainer:
         if self.hubert is None:
             self.clear_memory()
             print("   [Engine] Loading HuBERT...")
-            self.hubert = torch.hub.load("bshall/hubert:main", "hubert_soft", trust_repo=True).to(self.device)
-            self.hubert.eval()
+            
+            # [FIX] Try loading local HuBERT first
+            local_hubert_path = r"C:\INSTALLER_PACKAGE\assets\hubert\hubert_base.pt"
+            if os.path.exists(local_hubert_path):
+                print(f"   [Engine] Using Local HuBERT: {local_hubert_path}")
+                self.hubert = torch.jit.load(local_hubert_path).to(self.device)
+                self.hubert.eval()
+            else:
+                 print("   [Engine] Downloading HuBERT from Torch Hub...")
+                 self.hubert = torch.hub.load("bshall/hubert:main", "hubert_soft", trust_repo=True).to(self.device)
+                 self.hubert.eval()
 
     def clear_memory(self):
         gc.collect()
@@ -124,14 +133,14 @@ class VoiceConverter:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    def convert(self, in_path, out_path):
+    def convert(self, in_path, out_path, f0_method="rmvpe", index_rate=0.4, protect=0.33, filter_radius=3, resample_sr=48000):
         """
         RVC Voice Conversion Logic (Chunked for VRAM Safety)
         Audio -> Split(30s) -> HuBERT -> Model -> Vocoder -> Join -> Audio
         """
         try:
             print("⚡ [DEBUG] RVC Trainer Code Updated & Active!")
-            print(f"   [Convert] Processing: {in_path}")
+            print(f"   [Convert] Processing: {in_path} with Method={f0_method}, Index={index_rate}, Protect={protect}")
             
             # 1. Load Audio
             wav, sr = torchaudio.load(in_path)
@@ -141,19 +150,36 @@ class VoiceConverter:
                 wav = torch.mean(wav, dim=0, keepdim=True)
             
             # Resample to 16000Hz (HuBERT requirement)
-            resampler = torchaudio.transforms.Resample(sr, 16000).to(self.device)
-            wav_16k = resampler(wav.to(self.device))
-            
+            resampler_16k = torchaudio.transforms.Resample(sr, 16000).to(self.device)
+            wav_16k = resampler_16k(wav.to(self.device))
+
+            # Resample to target sample rate (e.g., 48000Hz for Hi-Fi)
+            final_resampler = torchaudio.transforms.Resample(sr, resample_sr).to(self.device)
+            wav_resampled = final_resampler(wav.to(self.device))
+
             # 2. Setup Models
             if self.hubert is None:
                 self.load_hubert_model()
                 if self.hubert is None:
-                    self.hubert = torch.hub.load("bshall/hubert:main", "hubert_soft", trust_repo=True).to(self.device)
-                    self.hubert.eval()
+                    # [FIX] Try loading local HuBERT first
+                    local_hubert_path = r"C:\INSTALLER_PACKAGE\assets\hubert\hubert_base.pt"
+                    if os.path.exists(local_hubert_path):
+                        print(f"   [Engine] Using Local HuBERT: {local_hubert_path}")
+                        self.hubert = torch.jit.load(local_hubert_path).to(self.device)
+                        self.hubert.eval()
+                    else:
+                        print("   [Engine] Downloading HuBERT from Torch Hub...")
+                        self.hubert = torch.hub.load("bshall/hubert:main", "hubert_soft", trust_repo=True).to(self.device)
+                        self.hubert.eval()
             
             # Vocoder setup (Griffin-Lim)
             vocoder = torchaudio.transforms.GriffinLim(n_fft=1024, n_iter=32).to(self.device)
-            inv_mel = torchaudio.transforms.InverseMelScale(n_stft=1024 // 2 + 1, n_mels=80, sample_rate=22050).to(self.device)
+            inv_mel = torchaudio.transforms.InverseMelScale(n_stft=1024 // 2 + 1, n_mels=80, sample_rate=resample_sr).to(self.device)
+
+            # F0 Extraction (placeholder for f0_method application)
+            # This would be integrated with the actual RVC inference logic
+            # For now, we'll just log the method selection.
+            print(f"   [F0 Method] Selected: {f0_method}")
 
             # 3. Chunk Processing Strategy (30 seconds)
             chunk_duration_sec = 30
@@ -237,8 +263,26 @@ class VoiceConverter:
             if final_wav.dim() == 1:
                 final_wav = final_wav.unsqueeze(0)
                 
-            torchaudio.save(out_path, final_wav, 22050)
+            torchaudio.save(out_path, final_wav, resample_sr)
             
+            # [PRO] Diamond Mastering Fallback (Using pydub)
+            try:
+                from pydub import AudioSegment, effects
+                proc_wav = AudioSegment.from_file(out_path)
+                
+                # 1. High-End Clarity (Air)
+                highs = proc_wav.high_pass_filter(12000)
+                proc_wav = proc_wav.overlay(highs - 3)
+                
+                # 2. Vocal Presence (Compressor)
+                proc_wav = effects.compress_dynamic_range(proc_wav, threshold=-18, ratio=3.0)
+                
+                # 3. Final Normalize
+                proc_wav = effects.normalize(proc_wav, headroom=0.1)
+                proc_wav.export(out_path, format="wav")
+            except Exception as e:
+                print(f"Fallback Mastering failed: {e}")
+
             print(f"   [Success] Saved to {out_path}")
             return True
             

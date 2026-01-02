@@ -1,0 +1,44 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+mcp_config.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Backups and temp files
+*backup*
+staged_files_list.txt
+temp_work/
+testsprite_tests/
+*.bak
+
+# Logs and results
+output_result/
+*.log
+verification_*.txt
+verification_results.txt
+
+# Test scripts and data
+test_*.py
+test_*.ps1
+test_*.bat
+test_*.musicxml
+debug_*.py
+debug_*.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large binaries
+ffmpeg.exe
+ffprobe.exe

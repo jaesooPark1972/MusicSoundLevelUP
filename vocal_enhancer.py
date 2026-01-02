@@ -175,6 +175,8 @@ class VocalEnhancer:
         except:
             pass
         return audio
+    # [REMOVED] SKY-Aura Logic (Deprecated)
+    # [REMOVED] Vocal Protagonist Lead (Deprecated)
 
     def enhance_vocal(self, vocal_path, reverb_amount=30):
         """
@@ -213,20 +215,20 @@ class VocalEnhancer:
     
     def mix_vocal_and_mr(self, vocal, mr, vocal_volume=0, mr_volume=0):
         """
-        보컬 + MR 믹싱
-        
-        Args:
-            vocal: AudioSegment (보컬)
-            mr: AudioSegment (MR/반주)
-            vocal_volume: 보컬 볼륨 조정 (dB, -10 ~ +10)
-            mr_volume: MR 볼륨 조정 (dB, -10 ~ +10)
-        
-        Returns:
-            mixed: AudioSegment
+        보컬 + MR 믹싱 (Standard High-Fidelity)
         """
         print("\n" + "="*60)
-        print("🎵 보컬 + MR 믹싱")
+        print("🎵 오디오 믹싱 시작")
         print("="*60)
+        
+        # 1. 보컬의 존재감을 위해 MR의 특정 주파수(중음역대)를 아주 살짝 눌러줌 (Vocal Carving)
+        # MR이 보컬의 감정을 방해하지 않게 조연 역할을 충실히 하게 함.
+        print("  🎼 MR 조연 처리: 보컬 가독성 확보를 위한 공간 형성...")
+        mr = mr.low_pass_filter(15000).high_pass_filter(20) # 불필요한 초고역/초저역 정리
+        
+        # 보컬 명료도 확보를 위한 EQ (3kHz 대역을 MR에서 살짝 줄임)
+        # pydub에는 정밀 EQ가 부족하므로 전체 음량을 살짝 낮추고 보컬을 더 부각
+        mr = mr - 1.5 # MR을 기본적으로 약간 더 낮게 설정하여 보컬의 레이어를 높임
         
         # 볼륨 조정
         if vocal_volume != 0:
